@@ -24,7 +24,27 @@ pub async fn connect(
     let addr = address.to_socket_addrs().unwrap().next().unwrap();
     let tcp = TcpStream::connect(&addr).await?;
     let mut transport = ClientCodec.framed(tcp);
-    client_handshake(&mut transport, address.to_string(), login, passcode).await?;
+    client_handshake(&mut transport, address.to_string(), login, passcode, vec![]).await?;
+    Ok(transport)
+}
+
+pub async fn connect_with_headers(
+    address: &str,
+    login: Option<String>,
+    passcode: Option<String>,
+    headers: Vec<(String, String)>,
+) -> Result<ClientTransport> {
+    let addr = address.to_socket_addrs().unwrap().next().unwrap();
+    let tcp = TcpStream::connect(&addr).await?;
+    let mut transport = ClientCodec.framed(tcp);
+    client_handshake(
+        &mut transport,
+        address.to_string(),
+        login,
+        passcode,
+        headers,
+    )
+    .await?;
     Ok(transport)
 }
 
@@ -33,6 +53,7 @@ async fn client_handshake(
     host: String,
     login: Option<String>,
     passcode: Option<String>,
+    headers: Vec<(String, String)>,
 ) -> Result<()> {
     let connect = Message {
         content: ToServer::Connect {
@@ -41,6 +62,7 @@ async fn client_handshake(
             login,
             passcode,
             heartbeat: None,
+            headers,
         },
         extra_headers: vec![],
     };
@@ -65,6 +87,21 @@ pub fn subscribe(dest: &str, id: &str) -> Message<ToServer> {
         destination: dest.into(),
         id: id.into(),
         ack: None,
+        headers: vec![],
+    }
+    .into()
+}
+
+pub fn subscribe_with_headers(
+    dest: &str,
+    id: &str,
+    headers: Vec<(String, String)>,
+) -> Message<ToServer> {
+    ToServer::Subscribe {
+        destination: dest.into(),
+        id: id.into(),
+        ack: None,
+        headers,
     }
     .into()
 }

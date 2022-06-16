@@ -82,6 +82,7 @@ pub enum ToServer {
         login: Option<String>,
         passcode: Option<String>,
         heartbeat: Option<(u32, u32)>,
+        headers: Vec<(String, String)>,
     },
     /// Send a message to a destination in the messaging system
     Send {
@@ -95,6 +96,7 @@ pub enum ToServer {
         destination: String,
         id: String,
         ack: Option<AckMode>,
+        headers: Vec<(String, String)>,
     },
     /// Remove an existing subscription
     Unsubscribe { id: String },
