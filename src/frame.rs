@@ -196,6 +196,7 @@ impl<'a> Frame<'a> {
                     login: fh(h, "login"),
                     passcode: fh(h, "passcode"),
                     heartbeat,
+                    headers: vec![],
                 }
             }
             b"DISCONNECT" | b"disconnect" => {
@@ -225,6 +226,7 @@ impl<'a> Frame<'a> {
                         Some(other) => bail!("Invalid ack mode: {}", other),
                         None => None,
                     },
+                    headers: vec![],
                 }
             }
             b"UNSUBSCRIBE" | b"unsubscribe" => {
@@ -366,9 +368,9 @@ impl ToServer {
                 ref login,
                 ref passcode,
                 ref heartbeat,
-            } => Frame::new(
-                b"CONNECT",
-                &[
+                ref headers,
+            } => {
+                let mut hdr: Vec<(&[u8], Option<Cow<[u8]>>)> = vec![
                     (b"accept-version", Some(Borrowed(accept_version.as_bytes()))),
                     (b"host", Some(Borrowed(host.as_bytes()))),
                     (b"login", sb(login)),
@@ -377,9 +379,12 @@ impl ToServer {
                         b"heart-beat",
                         heartbeat.map(|(v1, v2)| Owned(format!("{},{}", v1, v2).into())),
                     ),
-                ],
-                None,
-            ),
+                ];
+                for (key, val) in headers {
+                    hdr.push((key.as_bytes(), Some(Borrowed(val.as_bytes()))));
+                }
+                Frame::new(b"CONNECT", &hdr, None)
+            }
 
             Disconnect { ref receipt } => {
                 Frame::new(b"DISCONNECT", &[(b"receipt", sb(receipt))], None)
@@ -389,9 +394,9 @@ impl ToServer {
                 ref destination,
                 ref id,
                 ref ack,
-            } => Frame::new(
-                b"SUBSCRIBE",
-                &[
+                ref headers,
+            } => {
+                let mut hdr: Vec<(&[u8], Option<Cow<[u8]>>)> = vec![
                     (b"destination", Some(Borrowed(destination.as_bytes()))),
                     (b"id", Some(Borrowed(id.as_bytes()))),
                     (
@@ -402,9 +407,12 @@ impl ToServer {
                             AckMode::ClientIndividual => Borrowed(&b"client-individual"[..]),
                         }),
                     ),
-                ],
-                None,
-            ),
+                ];
+                for (key, val) in headers {
+                    hdr.push((key.as_bytes(), Some(Borrowed(val.as_bytes()))));
+                }
+                Frame::new(b"SUBSCRIBE", &hdr, None)
+            }
 
             Unsubscribe { ref id } => Frame::new(
                 b"UNSUBSCRIBE",
